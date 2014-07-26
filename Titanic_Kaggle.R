@@ -4,6 +4,8 @@ set.seed(413487)
 library(caret)
 library(rpart)
 
+
+# NEW COMMENT YAY!
 setwd("C:/Users/josdavis/Documents/Personal/Data Sets/Titanic - Kaggle")
 test <- read.csv("test.csv", header = TRUE)
 train <- read.csv("train.csv", header = TRUE)
