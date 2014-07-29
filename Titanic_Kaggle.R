@@ -1,6 +1,6 @@
 # Kaggle Competition
 rm(list = ls()); gc()
-set.seed(413487)
+set.seed(98143)
 library(caret)
 library(rpart)
 
@@ -76,10 +76,8 @@ imputeMedian <- function(impute.var, filter.var, var.levels) {
 }
 
 train$Age[which(train$Title=="Dr")]
-
 train$Age.Fill <- imputeMedian(train$Age, train$Title, 
                              titles.na.train)
-
 train$Age.Fill[which(train$Title=="Dr")]
 
 #################
@@ -90,7 +88,7 @@ idx <- createDataPartition(train[,3], times = 1, p = 0.60, list = FALSE)
 train.1 <- train[idx,]
 train.2 <- train[-idx,]
 
-formula <- as.formula("Survived ~ Pclass + Sex + Age + SibSp + 
+formula <- as.formula("Survived ~ Pclass + Sex + Age.Fill + SibSp + 
                       Fare + Embarked + family.no")
 
 #################
@@ -114,13 +112,13 @@ train.2.i <- missForest(train.2[c("Survived", "Pclass", "Sex", "Age",
                                   "SibSp", "Fare", "Embarked", "family.no")], verbose = TRUE)$ximp
 
 library(randomForest)
-m.forest <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
-                           Fare + Embarked + family.no, data = train.1.i)
-p.forest <- predict(m.forest, newdata = train.2.i)
-a.forest <- sum(p.forest == train.2.i$Survived) / length(train.2.i$Survived)
+m.forest <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age.Fill + SibSp + 
+                           Fare + Embarked + family.no, data = train.1)
+p.forest <- predict(m.forest, newdata = train.2)
+a.forest <- sum(p.forest == train.2$Survived) / length(train.2$Survived)
 a.forest
 
-confusionMatrix(p.forest, train.2.i$Survived)
+confusionMatrix(p.forest, train.2$Survived)
 
 # People I got wrong that actually lived
 summary(train.2[p.forest == 0 & train.2.i$Survived == 1,][c("Age", "Sex", "Pclass")])
