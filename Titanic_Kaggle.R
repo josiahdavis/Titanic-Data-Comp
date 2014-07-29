@@ -21,7 +21,6 @@ library(plyr)
 train <- ddply(train, c("last.name"), function(x)cbind(x, family.no = length(unique(x$Name)) - 1))
 
 # Get Titles
-
 getTitle <- function(data) {
   title.dot.start <- regexpr("\\,[A-Z ]{1,20}\\.", data$Name, TRUE)
   title.comma.end <- title.dot.start + attr(title.dot.start, "match.length")-1
@@ -36,6 +35,17 @@ library(missForest)
 train <- missForest(train[c("Survived", "Pclass", "Sex", "Age",
                                   "SibSp", "Fare", "Embarked", "family.no", "Title")], verbose = TRUE)$ximp
 
+# Create a numeric version as well
+train.n <- train[c("Survived", "Pclass", "Sex", "Age",
+                            "SibSp", "Fare", "Embarked", "family.no")]
+train.n$Sex <- ifelse(train$Sex == "male", 1, 0)
+
+train.n$Embarked <- as.numeric(train$Embarked)
+
+train.n <- as.matrix(train.n)
+
+str(train.n)
+
 #################
 # Split up into train/test sets
 #################
@@ -46,6 +56,7 @@ train.2 <- train[-idx,]
 
 formula <- as.formula("Survived ~ Pclass + Sex + Age.Fill + SibSp + 
                       Fare + Embarked + family.no")
+
 
 #################
 # Decision Tree
@@ -113,21 +124,12 @@ summary(train.2[p.boost == 0 & train.2$Survived == 0,][c("Age", "Sex", "Pclass")
 # Neural Networks
 ##################
 library(neuralnet)
-
-# Convert to matrix
-train.2.n <- train.2[c("Survived", "Pclass", "Sex", "Age",
-                                  "SibSp", "Fare", "Embarked", "family.no")]
-
-train.2.n$Sex <- ifelse(train.2$Sex == "male", 1, 0)
-
 m.nn <- neuralnet(Survived ~ Pclass + Sex + Age + SibSp + 
                     Fare + family.no, 
-                  hidden = 6, data = train.2.n, threshold = 0.05)
+                  hidden = 6, data = train.1.n, threshold = 0.05)
 
 # Perform out of sample predictions
-neuralnetworks.prediction<-ifelse(compute(neuralnetworks.model, 
-                                          data.pred[c("sex2", "agefill","sibsp", "pclass2nd", 
-                                                      "pclass3rd")])$net.result>=0.5, 1, 0)
+p.nn <-ifelse(compute(m.nn,train.2.n)$net.result>=0.5, 1, 0)
 
 # % Correctly predicted assessment
 neuralnetworks.accuracy <- sum(neuralnetworks.prediction==y.pred)/length(neuralnetworks.prediction)
