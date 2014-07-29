@@ -59,28 +59,6 @@ getTitle <- function(data) {
 
 train$Title <- as.factor(getTitle(train))
 
-options(digits=2)
-require(Hmisc)
-bystats(train$Age, train$Title, fun=function(x)c(Mean=mean(x),Median=median(x), sd=sd(x)))
-bystats(train$Age, train$Pclass, fun=function(x)c(Mean=mean(x),Median=median(x), sd=sd(x)))
-
-# Impute Ages
-titles.na.train <- c("Dr", "Master", "Mrs", "Miss", "Mr")
-
-imputeMedian <- function(impute.var, filter.var, var.levels) {
-  for (v in var.levels) {
-    impute.var[ which( filter.var == v)] <- impute(impute.var[ 
-      which( filter.var == v)])
-  }
-  return (impute.var)
-}
-
-train$Age[which(train$Title=="Dr")]
-train$Age.Fill <- imputeMedian(train$Age, train$Title, 
-                             titles.na.train)
-train$Age.Fill[which(train$Title=="Dr")]
-
-
 # Impute missing values
 library(missForest)
 train <- missForest(train[c("Survived", "Pclass", "Sex", "Age",
