@@ -57,7 +57,7 @@ getTitle <- function(data) {
   return (data$Title)
 }   
 
-train$Title <- getTitle(train)
+train$Title <- as.factor(getTitle(train))
 
 options(digits=2)
 require(Hmisc)
@@ -79,6 +79,12 @@ train$Age[which(train$Title=="Dr")]
 train$Age.Fill <- imputeMedian(train$Age, train$Title, 
                              titles.na.train)
 train$Age.Fill[which(train$Title=="Dr")]
+
+
+# Impute missing values
+library(missForest)
+train <- missForest(train[c("Survived", "Pclass", "Sex", "Age",
+                                  "SibSp", "Fare", "Embarked", "family.no", "Title")], verbose = TRUE)$ximp
 
 #################
 # Split up into train/test sets
@@ -104,12 +110,6 @@ confusionMatrix(round(p.tree, 0), train.2$Survived)
 #################
 # Random Forest
 ##################
-# Impute missing values
-library(missForest)
-train.1.i <- missForest(train.1[c("Survived", "Pclass", "Sex", "Age",
-                                  "SibSp", "Fare", "Embarked", "family.no")], verbose = TRUE)$ximp
-train.2.i <- missForest(train.2[c("Survived", "Pclass", "Sex", "Age",
-                                  "SibSp", "Fare", "Embarked", "family.no")], verbose = TRUE)$ximp
 
 library(randomForest)
 m.forest <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age.Fill + SibSp + 
