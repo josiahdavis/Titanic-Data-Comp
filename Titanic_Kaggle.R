@@ -51,10 +51,10 @@ str(train.n)
 #################
 
 idx <- createDataPartition(train[,3], times = 1, p = 0.60, list = FALSE)
-train.1 <- train[idx,]
-train.2 <- train[-idx,]
+train.1 <- train[idx,]; train.2 <- train[-idx,]
+train.1.n <- train.n[idx,]; train.2.n <- train.n[-idx,]
 
-formula <- as.formula("Survived ~ Pclass + Sex + Age.Fill + SibSp + 
+formula <- as.formula("Survived ~ Pclass + Sex + Age + SibSp + 
                       Fare + Embarked + family.no")
 
 
@@ -124,12 +124,11 @@ summary(train.2[p.boost == 0 & train.2$Survived == 0,][c("Age", "Sex", "Pclass")
 # Neural Networks
 ##################
 library(neuralnet)
-m.nn <- neuralnet(Survived ~ Pclass + Sex + Age + SibSp + 
-                    Fare + family.no, 
-                  hidden = 6, data = train.1.n, threshold = 0.05)
+m.nn <- neuralnet(formula, hidden = 6, data = train.1.n, threshold = 0.05)
 
 # Perform out of sample predictions
-p.nn <-ifelse(compute(m.nn,train.2.n)$net.result>=0.5, 1, 0)
+p.nn <-ifelse(compute(m.nn,train.2.n[,2:8])$net.result>=0.5, 1, 0)
 
 # % Correctly predicted assessment
-neuralnetworks.accuracy <- sum(neuralnetworks.prediction==y.pred)/length(neuralnetworks.prediction)
+a.nn <- sum(p.nn==train.2.n[,1])/length(p.nn)
+a.nn # Got 0.8366197183 with seed of 98143
