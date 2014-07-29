@@ -132,3 +132,7 @@ p.nn <-ifelse(compute(m.nn,train.2.n[,2:8])$net.result>=0.5, 1, 0)
 # % Correctly predicted assessment
 a.nn <- sum(p.nn==train.2.n[,1])/length(p.nn)
 a.nn # Got 0.8366197183 with seed of 98143
+
+# Does an even better job at predicting life than usual, 
+# Does a slightly worse job of predicting death
+confusionMatrix(p.nn, train.2.n[,1])
