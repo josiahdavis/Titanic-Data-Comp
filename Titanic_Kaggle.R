@@ -73,7 +73,7 @@ confusionMatrix(round(p.tree, 0), train.2$Survived)
 ##################
 
 library(randomForest)
-m.forest <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age.Fill + SibSp + 
+m.forest <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
                            Fare + Embarked + family.no, data = train.1)
 p.forest <- predict(m.forest, newdata = train.2)
 a.forest <- sum(p.forest == train.2$Survived) / length(train.2$Survived)
@@ -92,12 +92,6 @@ summary(train.2[p.forest == 1 & train.2.i$Survived == 0,][c("Age", "Sex", "Pclas
 
 # People I got right that actually died
 summary(train.2[p.forest == 0 & train.2.i$Survived == 0,][c("Age", "Sex", "Pclass")])
-
-# I got 0.8651685 (seed = 413487)
-# I got 0.8595506 (seed = 25)
-# I got 0.8398876 (seed = 543)
-# I got 0.8455056 (seed = 15142)
-# I got 0.8426966 (seed = 98143)
 
 ##################
 # Boosted Trees
@@ -136,3 +130,14 @@ a.nn # Got 0.8366197183 with seed of 98143
 # Does an even better job at predicting life than usual, 
 # Does a slightly worse job of predicting death
 confusionMatrix(p.nn, train.2.n[,1])
+
+##################
+# Naive Bayes 
+##################
+library(e1071)
+m.nb <- naiveBayes(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
+                     Fare + Embarked + family.no, data = train.1)
+p.nb<-predict(m.nb,train.2)
+a.nb <- sum(p.nb==train.2$Survived)/length(p.nb)
+
+confusionMatrix(p.nb, train.2$Survived)
