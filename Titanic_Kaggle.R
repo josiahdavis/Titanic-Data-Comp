@@ -18,35 +18,7 @@ train$last.name <- as.factor(unlist(train$last.name)[seq(1, 1782, 2)]) #take eve
 
 # How many additional family members on board
 library(plyr)
-train <- ddply(train, c("last.name"), function(x)cbind(x, family.no = length(unique(x$Name)) - 1)) 
-
-
-# Add Spouse Variable (WIP)
-fm <- c()
-rm(i, j)
-
-train$spouse <- 0
-# Whether the person has a spouse on board
-# Loop through each passanger, check for relatives, opposite gender, age
-
-for (i in levels(train$Name)){
-  if(train[train$Name == i,]$family.no > 0 & train[train$Name == i,]$Age > 15 & !is.na(train[train$Name == i,]$Age)){
-    
-    # Loop through all family members
-    # Create a dataframe of adult family members
-    fm <- (train[train$last.name == train[train$Name == i,]$last.name & train[train$Name == i,]$Age > 15, ])
-    fm$Name <- droplevels(fm$Name)
-    
-    for (j in levels(fm$Name)){
-      # print(paste(j, ", ", train[train$Name == j,]$Name))
-      train$spouse <-  ifelse(any(fm[fm$Name != j,]$Sex != fm[fm$Name == j,]$Sex), 1, 0)
-    }
-  }
-  fm <- c()
-}
-
-summary(as.factor(train$married))
-train[train$married == 1,]
+train <- ddply(train, c("last.name"), function(x)cbind(x, family.no = length(unique(x$Name)) - 1))
 
 # Get Titles
 
