@@ -3,22 +3,22 @@ rm(list = ls()); gc()
 set.seed(98143)
 library(caret)
 library(rpart)
+library(plyr)
 
 setwd("C:/Users/josdavis/Documents/GitHub/Titanic-Data-Comp")
 test <- read.csv("test.csv", header = TRUE)
-train <- read.csv("train.csv", header = TRUE)
+train.o <- read.csv("train.csv", header = TRUE)
 
 ##################
 # Create Variables
 ##################
 
 # Add Number of Family Members
-train$last.name <- strsplit(as.character(train$Name), ",")
-train$last.name <- as.factor(unlist(train$last.name)[seq(1, 1782, 2)]) #take every other element
+train.o$last.name <- strsplit(as.character(train.o$Name), ",")
+train.o$last.name <- as.factor(unlist(train.o$last.name)[seq(1, 1782, 2)]) #take every other element
 
 # How many additional family members on board
-library(plyr)
-train <- ddply(train, c("last.name"), function(x)cbind(x, family.no = length(unique(x$Name)) - 1))
+train.o <- ddply(train.o, c("last.name"), function(x)cbind(x, family.no = length(unique(x$Name)) - 1))
 
 # Get Titles
 getTitle <- function(data) {
@@ -28,43 +28,39 @@ getTitle <- function(data) {
   return (data$Title)
 }   
 
-train$Title <- as.factor(getTitle(train))
+train.o$Title <- as.factor(getTitle(train.o))
 
 # Impute missing values
 library(missForest)
-train <- missForest(train[c("Survived", "Pclass", "Sex", "Age",
+train <- missForest(train.o[c("Survived", "Pclass", "Sex", "Age",
                                   "SibSp", "Fare", "Embarked", "family.no", "Title")], verbose = TRUE)$ximp
 
 # Create a numeric version as well
 train.n <- train[c("Survived", "Pclass", "Sex", "Age",
                             "SibSp", "Fare", "Embarked", "family.no")]
 train.n$Sex <- ifelse(train$Sex == "male", 1, 0)
-
 train.n$Embarked <- as.numeric(train$Embarked)
-
 train.n <- as.matrix(train.n)
-
 str(train.n)
 
 #################
 # Split up into train/test sets
 #################
 
-idx <- createDataPartition(train[,3], times = 1, p = 0.60, list = FALSE)
-train.1 <- train[idx,]; train.2 <- train[-idx,]
-train.1.n <- train.n[idx,]; train.2.n <- train.n[-idx,]
-
+idx <- createDataPartition(train.o[,3], times = 3, p = 0.60, list = FALSE)
+train.1.o <- train.o[idx[,1],]; train.2.o <- train.o[idx[,2],]; train.3.o <- train.o[idx[,3],]
+train.1 <- train[idx[,1],]; train.2 <- train[idx[,2],]; train.3 <- train[idx[,3],]
+train.1.n <- train.n[idx[,1],]; train.2.n <- train.n[idx[,2],]; train.3.n <- train.n[idx[,3],]
 formula <- as.formula("Survived ~ Pclass + Sex + Age + SibSp + 
                       Fare + Embarked + family.no")
-
 
 #################
 # Decision Tree
 #################
 m.tree <- rpart(formula, data = train.1)
 p.tree <- predict(m.tree, newdata = train.2)
-a.tree <- sum(round(p.tree, 0) == train.2$Survived) / length(train.2$Survived)
-a.tree # I got 0.8146067
+a.tree <- sum(round(p.tree,0) == train.2$Survived) / length(train.2$Survived)
+a.tree
 
 confusionMatrix(round(p.tree, 0), train.2$Survived)
 
@@ -80,6 +76,9 @@ a.forest <- sum(p.forest == train.2$Survived) / length(train.2$Survived)
 a.forest
 
 confusionMatrix(p.forest, train.2$Survived)
+
+
+train.2.o[p.forest == 1 & train.2.o$Survived == 0,][c("Name" ,"Age", "Sex", "Pclass", "family.no")]
 
 # People I got wrong that actually lived
 summary(train.2[p.forest == 0 & train.2.i$Survived == 1,][c("Age", "Sex", "Pclass")])
@@ -141,3 +140,13 @@ p.nb<-predict(m.nb,train.2)
 a.nb <- sum(p.nb==train.2$Survived)/length(p.nb)
 
 confusionMatrix(p.nb, train.2$Survived)
+
+##################
+# Ensemble Model 
+##################
+pred <- data.frame(Survival=train.2$Survived,dt=round(p.tree,0), bt=p.boost, rf=p.forest, nn=p.nn, nb=p.nb)
+
+m.ensemble <- randomForest(as.factor(Survival) ~ dt + bt + rf + nn + nb, data = pred)
+p.ensemble <- predict(m.ensemble, newdata = pred)
+a.ensemble <- sum(p.ensemble == pred$Survival) / length(pred$Survival)
+a.ensemble
