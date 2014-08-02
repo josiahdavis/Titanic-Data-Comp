@@ -4,6 +4,11 @@ set.seed(98143)
 library(caret)
 library(rpart)
 library(plyr)
+library(randomForest)
+library(ada)
+library(neuralnet)
+library(e1071)
+
 
 setwd("C:/Users/josdavis/Documents/GitHub/Titanic-Data-Comp")
 test <- read.csv("test.csv", header = TRUE)
@@ -46,11 +51,10 @@ str(train.n)
 #################
 # Split up into train/test sets
 #################
-
-idx <- createDataPartition(train.o[,3], times = 3, p = 0.60, list = FALSE)
-train.1.o <- train.o[idx[,1],]; train.2.o <- train.o[idx[,2],]; train.3.o <- train.o[idx[,3],]
-train.1 <- train[idx[,1],]; train.2 <- train[idx[,2],]; train.3 <- train[idx[,3],]
-train.1.n <- train.n[idx[,1],]; train.2.n <- train.n[idx[,2],]; train.3.n <- train.n[idx[,3],]
+idx <- createDataPartition(train.o[,3], times = 1, p = 0.60, list = FALSE)
+train.1.o <- train.o[idx,]; train.2.o <- train.o[-idx,]
+train.1 <- train[idx,]; train.2 <- train[-idx,]
+train.1.n <- train.n[idx,]; train.2.n <- train.n[-idx,]
 formula <- as.formula("Survived ~ Pclass + Sex + Age + SibSp + 
                       Fare + Embarked + family.no")
 
@@ -67,78 +71,39 @@ confusionMatrix(round(p.tree, 0), train.2$Survived)
 #################
 # Random Forest
 ##################
-
-library(randomForest)
 m.forest <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
                            Fare + Embarked + family.no, data = train.1)
 p.forest <- predict(m.forest, newdata = train.2)
 a.forest <- sum(p.forest == train.2$Survived) / length(train.2$Survived)
 a.forest
-
 confusionMatrix(p.forest, train.2$Survived)
-
-
-train.2.o[p.forest == 1 & train.2.o$Survived == 0,][c("Name" ,"Age", "Sex", "Pclass", "family.no")]
-
-# People I got wrong that actually lived
-summary(train.2[p.forest == 0 & train.2.i$Survived == 1,][c("Age", "Sex", "Pclass")])
-
-# People I got right that actually lived
-summary(train.2[p.forest == 1 & train.2.i$Survived == 1,][c("Age", "Sex", "Pclass")])
-
-# People I got wrong that actually died
-summary(train.2[p.forest == 1 & train.2.i$Survived == 0,][c("Age", "Sex", "Pclass")])
-
-# People I got right that actually died
-summary(train.2[p.forest == 0 & train.2.i$Survived == 0,][c("Age", "Sex", "Pclass")])
 
 ##################
 # Boosted Trees
 ##################
-
-library(ada)
 m.boost <-ada(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
                 Fare + Embarked + family.no, data=train.1, verbose=TRUE,na.action=na.rpart)
 p.boost <-predict(m.boost, newdata=train.2, type="vector")
-
 a.boost <- sum(p.boost==train.2$Survived)/length(p.boost)
 confusionMatrix(p.boost, train.2$Survived)
-
-# People I got wrong that actually lived
-summary(train.2[p.boost == 0 & train.2$Survived == 1,][c("Age", "Sex", "Pclass")])
-# People I got right that actually lived
-summary(train.2[p.boost == 1 & train.2$Survived == 1,][c("Age", "Sex", "Pclass")])
-# People I got wrong that actually died
-summary(train.2[p.boost == 1 & train.2$Survived == 0,][c("Age", "Sex", "Pclass")])
-# People I got right that actually died
-summary(train.2[p.boost == 0 & train.2$Survived == 0,][c("Age", "Sex", "Pclass")])
 
 ##################
 # Neural Networks
 ##################
-library(neuralnet)
 m.nn <- neuralnet(formula, hidden = 6, data = train.1.n, threshold = 0.05)
-
-# Perform out of sample predictions
 p.nn <-ifelse(compute(m.nn,train.2.n[,2:8])$net.result>=0.5, 1, 0)
-
-# % Correctly predicted assessment
 a.nn <- sum(p.nn==train.2.n[,1])/length(p.nn)
 a.nn # Got 0.8366197183 with seed of 98143
-
-# Does an even better job at predicting life than usual, 
-# Does a slightly worse job of predicting death
 confusionMatrix(p.nn, train.2.n[,1])
 
 ##################
 # Naive Bayes 
 ##################
-library(e1071)
 m.nb <- naiveBayes(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
                      Fare + Embarked + family.no, data = train.1)
 p.nb<-predict(m.nb,train.2)
 a.nb <- sum(p.nb==train.2$Survived)/length(p.nb)
-
+a.nb
 confusionMatrix(p.nb, train.2$Survived)
 
 ##################
@@ -150,3 +115,10 @@ m.ensemble <- randomForest(as.factor(Survival) ~ dt + bt + rf + nn + nb, data = 
 p.ensemble <- predict(m.ensemble, newdata = pred)
 a.ensemble <- sum(p.ensemble == pred$Survival) / length(pred$Survival)
 a.ensemble
+
+
+##################
+# Who did I get right and wrong? 
+##################
+train.2.o[p.forest == 1 & train.2.o$Survived == 0,][c("Name" ,"Age", "Sex", "Pclass", "family.no")]
+
