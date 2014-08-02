@@ -9,20 +9,32 @@ library(e1071, missForest)
 
 setwd("C:/Users/josdavis/Documents/GitHub/Titanic-Data-Comp")
 test <- read.csv("test.csv", header = TRUE)
-train.o <- read.csv("train.csv", header = TRUE)
+train <- read.csv("train.csv", header = TRUE)
 
 ##################
 # Create Variables
 ##################
 
-# Add Number of Family Members
-train.o$last.name <- strsplit(as.character(train.o$Name), ",")
-train.o$last.name <- as.factor(unlist(train.o$last.name)[seq(1, 1782, 2)]) #take every other element
+# Want to determine the number of family members
+# Combine data sets 
+test$dat <- "test"
+train$dat <- "train"
+combined <- rbind(train[,-2], test)
 
-# How many additional family members on board
-train.o <- ddply(train.o, c("last.name"), function(x)cbind(x, family.no = length(unique(x$Name)) - 1))
+# Get last name
+combined$last.name <- strsplit(as.character(combined$Name), ",")
+combined$last.name <- as.factor(unlist(combined$last.name)[seq(1, 2618, 2)]) #take every other element
 
-# Get Titles
+# Count the number of names by last name
+combined <- ddply(combined, c("last.name"), function(x)cbind(x, family.no = length(unique(x$Name)) - 1))
+
+# Split the data up again into training and test sets
+test <- combined[combined$dat == "test",]
+train.o <- merge(combined[combined$dat == "train",], train[,c("Survived", "Name")],
+                by = "Name", all.x = TRUE, all.y = TRUE)
+
+
+# Get Titles (for age imputation mainly)
 getTitle <- function(data) {
   title.dot.start <- regexpr("\\,[A-Z ]{1,20}\\.", data$Name, TRUE)
   title.comma.end <- title.dot.start + attr(title.dot.start, "match.length")-1
@@ -34,7 +46,7 @@ rm(getTitle)
 
 # Impute missing values
 train <- missForest(train.o[c("Survived", "Pclass", "Sex", "Age",
-                                  "SibSp", "Fare", "Embarked", "family.no", "Title")], verbose = TRUE)$ximp
+                                  "SibSp", "Fare", "Embarked", "family.no", "Title")], verbose = FALSE)$ximp
 
 # Create a numeric version as well
 # train.n <- train[c("Survived", "Pclass", "Sex", "Age",
@@ -43,7 +55,7 @@ train <- missForest(train.o[c("Survived", "Pclass", "Sex", "Age",
 # train.n$Embarked <- as.numeric(train$Embarked)
 # train.n <- as.matrix(train.n)
 
-formula <- as.formula("Survived~Pclass+Sex+Age+SibSp+Fare+Embarked+family.no")
+formula <- as.formula("Survived~Pclass+Sex+Age+SibSp+Embarked+Fare+family.no")
 
 
 
@@ -57,7 +69,7 @@ for(i in 1:iterations){
   #################
   # Split up into train/test sets
   #################
-  idx <- createDataPartition(train.o[,3], times = 1, p = 0.60, list = FALSE)
+  idx <- createDataPartition(train.o[,3], times = 1, p = 0.75, list = FALSE)
   train.1 <- train[idx,]; train.2 <- train[-idx,]
   #train.1.n <- train.n[idx,]; train.2.n <- train.n[-idx,]
   rm(idx)
@@ -65,7 +77,7 @@ for(i in 1:iterations){
   #################
   # Logit
   #################
-  m.logit <- glm(formula, family = binomial(logit), data = train.1)
+  m.logit <- glm(Survived~Pclass+Sex+Age+SibSp+Fare+family.no, family = binomial(logit), data = train.1)
   p.logit <- predict(m.logit, type = "response", newdata = train.2)
   r <- confusionMatrix(round(p.logit, 0), train.2$Survived)
   results[i,] <- c("Logit", r$overall[1], r$byClass[1], r$byClass[2])
@@ -127,9 +139,10 @@ for(i in 1:iterations){
 
 rm(i, formula)
 
-results$Accuracy <- as.numeric(results$Accuracy)
-results$Sensitivity <- as.numeric(results$Sensitivity)
-results$Specificity <- as.numeric(results$Specificity)
+results$Accuracy <- round(as.numeric(results$Accuracy),4)
+results$Sensitivity <- round(as.numeric(results$Sensitivity),4)
+results$Specificity <- round(as.numeric(results$Specificity),4)
+results
 
 ddply(results, ~Model, summarise, avg = round(mean(Accuracy), 5))
 
