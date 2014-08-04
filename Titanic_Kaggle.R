@@ -79,7 +79,7 @@ for(i in 1:iterations){
   #################
   # Split up into train/test sets
   #################
-  idx <- createDataPartition(train[,3], times = 1, p = 0.75, list = FALSE)
+  idx <- createDataPartition(train[,3], times = 1, p = 0.60, list = FALSE)
   train.1 <- train[idx,]; train.2 <- train[-idx,]
   #train.1.n <- train.n[idx,]; train.2.n <- train.n[-idx,]
   rm(idx)
@@ -170,9 +170,8 @@ test$rf <- predict(models$forest[[3]], newdata = test)
 test$bt <- predict(models$boost[[3]], newdata = test)
 test$nb <- predict(models$nb[[3]], newdata = test)
 
-
 test$Survived <- predict(models$ensemble[[1]], 
                          newdata = test[c("logit", "rf", "bt","nb")])
 
 submission <- test[c("PassengerId", "Survived")]
-write.csv(submission, "VICE.csv")
+write.csv(submission, "VICE.csv", row.names = FALSE)
