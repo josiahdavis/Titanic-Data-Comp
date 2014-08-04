@@ -5,7 +5,9 @@ library(caret, rpart, plyr)
 library(randomForest, ada, neuralnet)
 library(e1071, missForest)
 
-# TO-DO: Enhance family number algorithm
+# TO-DO: 
+# Save models within the for loop
+# Add spouse variable
 
 setwd("C:/Users/josdavis/Documents/GitHub/Titanic-Data-Comp")
 test <- read.csv("test.csv", header = TRUE)
@@ -57,12 +59,19 @@ train <- missForest(train.o[c("Survived", "Pclass", "Sex", "Age",
 
 formula <- as.formula("Survived~Pclass+Sex+Age+SibSp+Embarked+Fare+family.no")
 
-
-
 # Create an empty matrix for the modeling results
-iterations = 5
+iterations = 3
 results = data.frame(matrix(0, 5 * iterations, 4, dimnames = 
                               list(NULL, c("Model", "Accuracy", "Sensitivity", "Specificity"))))
+
+
+models <- vector(mode="list", length=iterations)
+models <- list(logit = models, 
+               forest = models, 
+               boost = models,
+               nb = models,
+               ensemble = models)
+
 
 for(i in 1:iterations){
 
@@ -78,6 +87,7 @@ for(i in 1:iterations){
   # Logit
   #################
   m.logit <- glm(Survived~Pclass+Sex+Age+SibSp+Fare+family.no, family = binomial(logit), data = train.1)
+  models$logit[[i]] <- m.logit
   p.logit <- predict(m.logit, type = "response", newdata = train.2)
   r <- confusionMatrix(round(p.logit, 0), train.2$Survived)
   results[i,] <- c("Logit", r$overall[1], r$byClass[1], r$byClass[2])
@@ -88,6 +98,7 @@ for(i in 1:iterations){
   ##################
   m.forest <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
                              Fare + Embarked + family.no, data = train.1)
+  models$forest[[i]] <- m.forest
   p.forest <- predict(m.forest, newdata = train.2)
   r <- confusionMatrix(p.forest, train.2$Survived)
   results[iterations+i,] <- c("Random Forest", r$overall[1], r$byClass[1], r$byClass[2])
@@ -98,6 +109,7 @@ for(i in 1:iterations){
   ##################
   m.boost <-ada(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
                   Fare + Embarked + family.no, data=train.1, verbose=TRUE,na.action=na.rpart)
+  models$boost[[i]] <- m.boost
   p.boost <-predict(m.boost, newdata=train.2, type="vector")
   r <- confusionMatrix(p.boost, train.2$Survived)
   results[iterations*2+i,] <- c("Boosted Trees", r$overall[1], r$byClass[1], r$byClass[2])
@@ -116,6 +128,7 @@ for(i in 1:iterations){
   # Naive Bayes 
   ##################
   m.nb <- naiveBayes(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Fare + Embarked + family.no, data = train.1)
+  models$nb[[i]] <- m.nb
   p.nb<-predict(m.nb,train.2)
   r <- confusionMatrix(p.nb, train.2$Survived)
   results[iterations*3+i,] <- c("Naive Bayes", r$overall[1], r$byClass[1], r$byClass[2])
@@ -130,6 +143,7 @@ for(i in 1:iterations){
                      rf=p.forest,
                      nb=p.nb)
   m.ensemble <- randomForest(as.factor(Survival) ~ logit + bt + rf + nb, data = pred)
+  models$ensemble[[i]] <- m.ensemble
   p.ensemble <- predict(m.ensemble, newdata = pred)
   r <- confusionMatrix(p.ensemble, pred$Survival)
   results[iterations*4+i,] <- c("Ensemble", r$overall[1], r$byClass[1], r$byClass[2])
