@@ -30,12 +30,6 @@ combined$last.name <- as.factor(unlist(combined$last.name)[seq(1, 2618, 2)]) #ta
 # Count the number of names by last name
 combined <- ddply(combined, c("last.name"), function(x)cbind(x, family.no = length(unique(x$Name)) - 1))
 
-# Split the data up again into training and test sets
-test <- combined[combined$dat == "test",]
-train.o <- merge(combined[combined$dat == "train",], train[,c("Survived", "Name")],
-                by = "Name", all.x = TRUE, all.y = TRUE)
-
-
 # Get Titles (for age imputation mainly)
 getTitle <- function(data) {
   title.dot.start <- regexpr("\\,[A-Z ]{1,20}\\.", data$Name, TRUE)
@@ -43,12 +37,19 @@ getTitle <- function(data) {
   data$Title <- substr(data$Name, title.dot.start+2, title.comma.end-1)
   return (data$Title)
 }   
-train.o$Title <- as.factor(getTitle(train.o))
+combined$Title <- as.factor(getTitle(combined))
 rm(getTitle)
 
-# Impute missing values
-train <- missForest(train.o[c("Survived", "Pclass", "Sex", "Age",
+# Impute missing values (does not change order)
+combined.i <- missForest(combined[c("Pclass", "Sex", "Age",
                                   "SibSp", "Fare", "Embarked", "family.no", "Title")], verbose = FALSE)$ximp
+
+combined <- cbind(combined.i, combined[c("Name", "PassengerId", "dat")])
+
+# Split the data back to original training and testing sets
+test <- combined[combined$dat == "test",]
+train <- merge(combined[combined$dat == "train",], train[,c("Survived", "Name")],
+                 by = "Name", all.x = TRUE, all.y = TRUE)
 
 # Create a numeric version as well
 # train.n <- train[c("Survived", "Pclass", "Sex", "Age",
@@ -60,7 +61,7 @@ train <- missForest(train.o[c("Survived", "Pclass", "Sex", "Age",
 formula <- as.formula("Survived~Pclass+Sex+Age+SibSp+Embarked+Fare+family.no")
 
 # Create an empty matrix for the modeling results
-iterations = 3
+iterations = 5
 results = data.frame(matrix(0, 5 * iterations, 4, dimnames = 
                               list(NULL, c("Model", "Accuracy", "Sensitivity", "Specificity"))))
 
@@ -78,7 +79,7 @@ for(i in 1:iterations){
   #################
   # Split up into train/test sets
   #################
-  idx <- createDataPartition(train.o[,3], times = 1, p = 0.75, list = FALSE)
+  idx <- createDataPartition(train[,3], times = 1, p = 0.75, list = FALSE)
   train.1 <- train[idx,]; train.2 <- train[-idx,]
   #train.1.n <- train.n[idx,]; train.2.n <- train.n[-idx,]
   rm(idx)
@@ -129,7 +130,7 @@ for(i in 1:iterations){
   ##################
   m.nb <- naiveBayes(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Fare + Embarked + family.no, data = train.1)
   models$nb[[i]] <- m.nb
-  p.nb<-predict(m.nb,train.2)
+  p.nb<-predict(m.nb,newdata=train.2)
   r <- confusionMatrix(p.nb, train.2$Survived)
   results[iterations*3+i,] <- c("Naive Bayes", r$overall[1], r$byClass[1], r$byClass[2])
   rm(r, m.nb)
@@ -158,9 +159,20 @@ results$Sensitivity <- round(as.numeric(results$Sensitivity),4)
 results$Specificity <- round(as.numeric(results$Specificity),4)
 results
 
-ddply(results, ~Model, summarise, avg = round(mean(Accuracy), 5))
+results.avg <- ddply(results, ~Model, summarise, avg = round(mean(Accuracy), 5))
 
-##################
-# Who did I get right and wrong? 
-##################
-# train.2.o[p.forest == 1 & train.2.o$Survived == 0,][c("Name" ,"Age", "Sex", "Pclass", "family.no")]
+#################
+# Make the final preditions
+#################
+
+test$logit <- round(predict(models$logit[[3]], type = "response", newdata = test),0)
+test$rf <- predict(models$forest[[3]], newdata = test)
+test$bt <- predict(models$boost[[3]], newdata = test)
+test$nb <- predict(models$nb[[3]], newdata = test)
+
+
+test$Survived <- predict(models$ensemble[[1]], 
+                         newdata = test[c("logit", "rf", "bt","nb")])
+
+submission <- test[c("PassengerId", "Survived")]
+write.csv(submission, "VICE.csv")
