@@ -205,7 +205,7 @@ test$Survived <- round(predict(m.logit, type = "response", newdata = test),0) # 
 test$Survived <- round(predict(m.logit, type = "response", newdata = test),0) # Trying a single cf model
 
 submission <- test[c("PassengerId", "Survived")]
-write.csv(submission, "VICE.csv", row.names = FALSE)
+write.csv(submission, "predictions.csv", row.names = FALSE)
 
 tuneRF <- train(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
                   Fare + Embarked + family.no, method = "rf", train, 
