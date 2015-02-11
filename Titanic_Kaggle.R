@@ -76,10 +76,11 @@ rm(combined)
 # train.n$Embarked <- as.numeric(train$Embarked)
 # train.n <- as.matrix(train.n)
 
-formula <- as.formula("Survived~Pclass+Sex+Age+SibSp+Embarked+Fare+family.no")
+formula <- as.formula("Survived ~ Pclass + Sex + Age + SibSp + 
+                      Embarked + Fare + family.no + any.lived")
 
 # Create an empty matrix for the modeling results
-iterations = 5
+iterations = 3
 results = data.frame(matrix(0, 5 * iterations, 4, dimnames = 
                               list(NULL, c("Model", "Accuracy", "Sensitivity", "Specificity"))))
 
@@ -90,7 +91,7 @@ models <- list(logit = el,
                boost = el,
                nb = el,
                ensemble = el)
-
+rm(el)
 
 for(i in 1:iterations){
 
@@ -105,18 +106,18 @@ for(i in 1:iterations){
   #################
   # Logit
   #################
-  m.logit <- glm(Survived~Pclass+Sex+Age+SibSp+Fare+family.no, family = binomial(logit), data = train)
+  m.logit <- glm(Survived~Pclass+Sex+Age+SibSp+Fare+family.no+any.lived, family=binomial(logit), data=train)
   models$logit[[i]] <- m.logit
-  p.logit <- predict(m.logit, type = "response", newdata = train)
-  r <- confusionMatrix(round(p.logit, 0), train$Survived)
+  p.logit <- predict(m.logit, type = "response", newdata = train.2)
+  r <- confusionMatrix(round(p.logit, 0), train.2$Survived)
   results[i,] <- c("Logit", r$overall[1], r$byClass[1], r$byClass[2])
   rm(r, m.logit)
   
   #################
   # Random Forest
-  ##################
+  #################
   m.forest <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
-                             Fare + Embarked + family.no, data = train.1)
+                             Fare + Embarked + family.no + any.lived, data = train.1)
   models$forest[[i]] <- m.forest
   p.forest <- predict(m.forest, newdata = train.2)
   r <- confusionMatrix(p.forest, train.2$Survived)
@@ -127,9 +128,9 @@ for(i in 1:iterations){
   # Conditional Inference Forest
   ##################
   m.cforest <- cforest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
-                         Fare + Embarked + family.no, data = train)
-  p.cforest <-  predict(m.cforest, newdata = train.2)
-  r <- confusionMatrix(p.cforest, train.2$Survived) 
+                         Fare + Embarked + family.no + any.lived, data = train)
+  p.cforest <-  predict(m.cforest, newdata = train)
+  r <- confusionMatrix(p.cforest, train$Survived) 
   
   ##################
   # Boosted Trees
@@ -201,7 +202,7 @@ test$Survived <- predict(models$ensemble[[1]],
                          newdata = test[c("logit", "rf", "bt","nb")])
 
 test$Survived <- round(predict(m.logit, type = "response", newdata = test),0) # Trying a single logit model
-test$Survived <- predict(m.cforest, newdata = test) # Trying a single rf model
+test$Survived <- round(predict(m.logit, type = "response", newdata = test),0) # Trying a single cf model
 
 submission <- test[c("PassengerId", "Survived")]
 write.csv(submission, "VICE.csv", row.names = FALSE)
