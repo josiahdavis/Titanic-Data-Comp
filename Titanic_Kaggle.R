@@ -209,7 +209,7 @@ write.csv(submission, "predictions.csv", row.names = FALSE)
 
 tuneRF <- train(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + 
                   Fare + Embarked + family.no, method = "rf", train, 
-                  trControl = trainControl(method = "cv", number = 10),
+                  trControl = trainControl(method = "cv", number = 5),
                   metric = "Accuracy")
 names(tuneRF)
 m.forest <- tuneRF$finalModel
