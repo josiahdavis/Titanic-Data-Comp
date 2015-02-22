@@ -220,3 +220,4 @@ pred <- data.frame(Survival=train$Survived,
                    bt=as.numeric(p.boost)-1, 
                    rf=as.numeric(p.forest)-1)
 test$Survived <- ifelse(rowSums(test[c("logit", "bt", "rf")])>1, 1, 0) # TRying a simple average
+
